@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from boto.s3.connection import S3Connection
+from boto.s3 import connect_to_region
 from boto.s3.key import Key
 from boto.exception import S3ResponseError
 from datetime import datetime
@@ -51,7 +51,11 @@ def backup():
         log.info("Uploading the " + FILENAME + " file to Amazon S3 ...")
 
         # get bucket
-        conn = S3Connection(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+        conn = connect_to_region(
+            AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        )
 
         try:
             bucket = conn.get_bucket(S3_BUCKET_NAME)
@@ -135,6 +139,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Backs up Postgres to S3 using pg_dump or archives backups.')
 
     # Finds the environment variables for AWS credentials prior to the argparse argument definition
+    AWS_REGION = os.environ.get('AWS_REGION')
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 
@@ -143,6 +148,7 @@ if __name__ == '__main__':
     parser.add_argument('--S3_KEY_NAME', required=True, help='S3 key name, the directory path where you want to put archive (i.e. backups/postgres/server_name)')
 
     # required arguments if not defined in environment variables
+    parser.add_argument('--AWS_REGION', required=AWS_REGION is None, help='S3 region to connect', default=AWS_REGION)
     parser.add_argument('--AWS_ACCESS_KEY_ID', required=AWS_ACCESS_KEY_ID is None, help='S3 access key (required if not defined in AWS_ACCESS_KEY_ID environment variable)', default=AWS_ACCESS_KEY_ID)
     parser.add_argument('--AWS_SECRET_ACCESS_KEY', required=AWS_SECRET_ACCESS_KEY is None, help='S3 secret access key (required if not defined in AWS_SECRET_ACCESS_KEY environment variable)', default=AWS_SECRET_ACCESS_KEY)
 
@@ -156,6 +162,7 @@ if __name__ == '__main__':
     parser.add_argument('--archive', action='store_true', help='Archive backups on S3')
     args = parser.parse_args()
 
+    AWS_REGION = args.AWS_REGION
     AWS_ACCESS_KEY_ID = args.AWS_ACCESS_KEY_ID
     AWS_SECRET_ACCESS_KEY = args.AWS_SECRET_ACCESS_KEY
     S3_BUCKET_NAME = args.S3_BUCKET_NAME
