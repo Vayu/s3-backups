@@ -84,7 +84,11 @@ class archive(object):
     def __init__(self, schedule_module='schedules.default'):
 
         schedule = importlib.import_module(schedule_module)
-        conn = S3Connection(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+        conn = connect_to_region(
+            AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        )
         bucket = conn.get_bucket(S3_BUCKET_NAME)
 
         key_name = S3_KEY_NAME
