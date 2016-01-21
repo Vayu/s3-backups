@@ -38,7 +38,7 @@ def backup():
         'minute': now.minute,
         'second': now.second
     }
-    FILENAME = ARCHIVE_NAME + FILENAME_SUFFIX + ".tar.gz"
+    FILENAME = ARCHIVE_NAME + FILENAME_SUFFIX + ARCHIVE_SUFFIX
 
     log.info("Preparing " + FILENAME + " from the database dump ...")
 
@@ -47,12 +47,6 @@ def backup():
         proc1 = subprocess.Popen(POSTGRES_DUMP_PATH, shell=True, universal_newlines=True, stdout=t1)
         proc1.wait()
         t1.flush()
-
-        # create tar.gz for the above two files
-        t2 = tempfile.NamedTemporaryFile()
-        tar = tarfile.open(t2.name, "w|gz")
-        tar.add(t1.name, ARCHIVE_NAME + ".sql")
-        tar.close()
 
         log.info("Uploading the " + FILENAME + " file to Amazon S3 ...")
 
@@ -64,14 +58,12 @@ def backup():
         except S3ResponseError:
             sys.stderr.write("There is no bucket with the name \"" + S3_BUCKET_NAME + "\" in your Amazon S3 account\n")
             sys.stderr.write("Error: Please enter an appropriate bucket name and re-run the script\n")
-            t2.close()
             return
 
         # upload file to Amazon S3
         k = Key(bucket)
         k.key = key_name + FILENAME
-        k.set_contents_from_filename(t2.name)
-        t2.close()
+        k.set_contents_from_filename(t1.name)
 
         log.info("Sucessfully uploaded the archive to Amazon S3")
 
@@ -156,8 +148,9 @@ if __name__ == '__main__':
 
     # optional arguments
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
-    parser.add_argument('--POSTGRES_DUMP_PATH', default='/usr/bin/pg_dumpall', help="Path to pg_dumpall (default: /usr/bin/pg_dumpall)")
+    parser.add_argument('--POSTGRES_DUMP_PATH', default='/usr/bin/pg_dumpall | gzip', help="Path to pg_dumpall (default: /usr/bin/pg_dumpall | gzip)")
     parser.add_argument('--ARCHIVE_NAME', default='all_databases', help='The base name for the archive')
+    parser.add_argument('--ARCHIVE_SUFFIX', default='.sql.gz', help='The file name suffix for archive')
     parser.add_argument('--schedule_module', default='s3_backups.schedules.default', help='Use a different archive schedule module (default: schedules.default)')
     parser.add_argument('--backup', action='store_true', help='Backup up Postgres to S3')
     parser.add_argument('--archive', action='store_true', help='Archive backups on S3')
@@ -169,6 +162,7 @@ if __name__ == '__main__':
     S3_KEY_NAME = args.S3_KEY_NAME
     POSTGRES_DUMP_PATH = args.POSTGRES_DUMP_PATH
     ARCHIVE_NAME = args.ARCHIVE_NAME
+    ARCHIVE_SUFFIX = args.ARCHIVE_SUFFIX
 
     if args.verbose:
         log.setLevel(logging.INFO)
